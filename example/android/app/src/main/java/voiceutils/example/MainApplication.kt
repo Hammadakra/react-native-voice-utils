@@ -9,6 +9,7 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.voiceutils.VoiceUtilsPackage // Import your package
 
 class MainApplication : Application(), ReactApplication {
 
@@ -16,14 +17,12 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Packages that cannot be autolinked yet can be added manually here, for example:
-              // add(MyReactNativePackage())
+              // Add your voice utils package
+              add(VoiceUtilsPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
-
         override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
-
         override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
         override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
       }

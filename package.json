@@ -47,14 +47,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Hammadakra/react-native-voice-utils.git.git"
+    "url": "git+https://github.com/Hammadakra/react-native-voice-utils.git"
   },
   "author": "Muhammad Hammad Akram <hammadakram602@gmail.com> (https://github.com/Hammadakra)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Hammadakra/react-native-voice-utils.git/issues"
+    "url": "https://github.com/Hammadakra/react-native-voice-utils/issues"
   },
-  "homepage": "https://github.com/Hammadakra/react-native-voice-utils.git#readme",
+  "homepage": "https://github.com/Hammadakra/react-native-voice-utils#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
