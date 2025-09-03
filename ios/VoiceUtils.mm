@@ -1,18 +1,26 @@
-#import "VoiceUtils.h"
+import Foundation
+import React
 
-@implementation VoiceUtils
-RCT_EXPORT_MODULE()
+@objc(VoiceUtils)
+class VoiceUtils: RCTEventEmitter {
+  override static func requiresMainQueueSetup() -> Bool {
+    return true
+  }
 
-- (NSNumber *)multiply:(double)a b:(double)b {
-    NSNumber *result = @(a * b);
+  override func supportedEvents() -> [String]! {
+    return ["onResults", "onPartialResults", "onError"]
+  }
 
-    return result;
+  @objc func startListening() {
+    // iOS stub - not implemented
+    sendEvent(withName: "onError", body: "iOS not supported yet")
+  }
+
+  @objc func stopListening() {
+    // stub
+  }
+
+  @objc func destroy() {
+    // stub
+  }
 }
-
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
-{
-    return std::make_shared<facebook::react::NativeVoiceUtilsSpecJSI>(params);
-}
-
-@end
