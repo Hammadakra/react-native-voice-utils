@@ -1,28 +1,29 @@
-import { Platform } from 'react-native';
-import { NativeModules, NativeEventEmitter, EmitterSubscription } from 'react-native';
+import { Platform, NativeModules, NativeEventEmitter } from "react-native";
+import type { EmitterSubscription } from "react-native";
 
 const { VoiceModule } = NativeModules;
 
 // Defensive check to avoid "null"
 if (!VoiceModule) {
-  console.error("VoiceModule is not linked properly. Did you rebuild your app after adding the package?");
+  console.error(
+    "VoiceModule is not linked properly. Did you rebuild your app after adding the package?"
+  );
 }
 
 const voiceEmitter = VoiceModule ? new NativeEventEmitter(VoiceModule) : null;
 
 /**
  * Start listening for speech
- * @returns {Promise<string>} Promise that resolves when listening starts
  */
-export const startListening = async () => {
+export const startListening = async (): Promise<string> => {
   console.log("Starting voice recognition...");
-  
+
   if (!VoiceModule) {
     throw new Error("VoiceModule is not available");
   }
-  
+
   try {
-    const result = await VoiceModule.startListening();
+    const result: string = await VoiceModule.startListening();
     console.log("Voice recognition started:", result);
     return result;
   } catch (error) {
@@ -33,15 +34,14 @@ export const startListening = async () => {
 
 /**
  * Stop listening for speech
- * @returns {Promise<string>} Promise that resolves when listening stops
  */
-export const stopListening = async () => {
+export const stopListening = async (): Promise<string> => {
   if (!VoiceModule) {
     throw new Error("VoiceModule is not available");
   }
-  
+
   try {
-    const result = await VoiceModule.stopListening();
+    const result: string = await VoiceModule.stopListening();
     console.log("Voice recognition stopped:", result);
     return result;
   } catch (error) {
@@ -52,15 +52,14 @@ export const stopListening = async () => {
 
 /**
  * Destroy the speech recognizer
- * @returns {Promise<string>} Promise that resolves when destroyed
  */
-export const destroy = async () => {
+export const destroy = async (): Promise<string | undefined> => {
   if (!VoiceModule) {
     return;
   }
-  
+
   try {
-    const result = await VoiceModule.destroy();
+    const result: string = await VoiceModule.destroy();
     console.log("Voice recognition destroyed:", result);
     return result;
   } catch (error) {
@@ -71,15 +70,17 @@ export const destroy = async () => {
 
 /**
  * Check if speech recognition is available
- * @returns {Promise<boolean>} Promise that resolves with availability status
  */
-export const isAvailable = async () => {
+export const isAvailable = async (): Promise<boolean> => {
   if (!VoiceModule) {
     return false;
   }
-  if(Platform.OS){
+
+  if (Platform.OS === "ios") {
     console.error("VoiceUtils is not implemented on iOS yet");
+    return false;
   }
+
   try {
     return await VoiceModule.isAvailable();
   } catch (error) {
@@ -90,13 +91,12 @@ export const isAvailable = async () => {
 
 /**
  * Check if currently listening
- * @returns {Promise<boolean>} Promise that resolves with listening status
  */
-export const isListening = async () => {
+export const isListening = async (): Promise<boolean> => {
   if (!VoiceModule) {
     return false;
   }
-  
+
   try {
     return await VoiceModule.isListening();
   } catch (error) {
@@ -107,45 +107,46 @@ export const isListening = async () => {
 
 /**
  * Add voice event listener
- * @param {string} event - Event name
- * @param {function} callback - Event callback
- * @returns {EmitterSubscription} Subscription object
  */
 export const addVoiceListener = (
-  event,
-  callback
-) => {
+  event: string,
+  callback: (data: unknown) => void
+): EmitterSubscription => {
   if (!voiceEmitter) {
     console.warn("VoiceModule emitter is not available");
-    // Return a dummy subscription so `.remove()` won't crash
     return {
       remove: () => {},
-    };
+    } as EmitterSubscription;
   }
-  
+
   return voiceEmitter.addListener(event, callback);
 };
 
 /**
  * Remove all listeners for a specific event
- * @param {string} event - Event name
  */
-export const removeAllListeners = (event) => {
+export const removeAllListeners = (event: string): void => {
   if (voiceEmitter) {
     voiceEmitter.removeAllListeners(event);
   }
 };
 
 // Convenience methods for common events
-export const onReady = (callback) => addVoiceListener("onReadyForSpeech", callback);
-export const onStart = (callback) => addVoiceListener("onBeginningOfSpeech", callback);
-export const onEnd = (callback) => addVoiceListener("onEndOfSpeech", callback);
-export const onError = (callback) => addVoiceListener("onError", callback);
-export const onResults = (callback) => addVoiceListener("onResults", callback);
-export const onPartialResults = (callback) => addVoiceListener("onPartialResults", callback);
-export const onRmsChanged = (callback) => addVoiceListener("onRmsChanged", callback);
+export const onReady = (callback: (data: unknown) => void) =>
+  addVoiceListener("onReadyForSpeech", callback);
+export const onStart = (callback: (data: unknown) => void) =>
+  addVoiceListener("onBeginningOfSpeech", callback);
+export const onEnd = (callback: (data: unknown) => void) =>
+  addVoiceListener("onEndOfSpeech", callback);
+export const onError = (callback: (data: unknown) => void) =>
+  addVoiceListener("onError", callback);
+export const onResults = (callback: (data: unknown) => void) =>
+  addVoiceListener("onResults", callback);
+export const onPartialResults = (callback: (data: unknown) => void) =>
+  addVoiceListener("onPartialResults", callback);
+export const onRmsChanged = (callback: (data: unknown) => void) =>
+  addVoiceListener("onRmsChanged", callback);
 
-// Default export for convenience
 export default {
   startListening,
   stopListening,
