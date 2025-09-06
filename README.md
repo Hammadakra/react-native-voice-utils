@@ -1,147 +1,297 @@
-# React Native Voice Recognition
+# react-native-voice-utils
 
-A React Native project with integrated voice-to-text functionality using Android's native SpeechRecognizer API.
+A powerful React Native package for voice-to-text speech recognition with native Android integration, real-time transcription, and comprehensive error handling.
 
 ## Features
 
-- 🎤 **Real-time Speech Recognition** - Convert speech to text in real-time
-- 📱 **Android Native Integration** - Uses Android's built-in SpeechRecognizer
-- 🔄 **Partial Results** - Get intermediate results while speaking
-- ⚡ **Promise-based API** - Modern async/await support
-- 🎛️ **Event-driven Architecture** - Real-time updates and callbacks
-- 🛡️ **Main Thread Safety** - All speech operations run on UI thread
-- 🔊 **Audio Level Monitoring** - Real-time RMS (volume) feedback
-- ⚠️ **Comprehensive Error Handling** - Detailed error codes and messages
-- 🔐 **Permission Management** - Runtime permission handling for microphone access
-
-## Screenshots
-
-*Add your app screenshots here*
+- 🎤 **Real-time Speech Recognition** – Convert voice to text instantly
+- 📱 **Android Native Integration** – Uses Android's built-in `SpeechRecognizer`
+- 🔄 **Partial Results** – Get transcription updates while speaking
+- ⚡ **Promise-based API** – Works seamlessly with async/await
+- 🎛 **Event-driven Architecture** – Real-time callbacks for recognition events
+- 🛡 **Main Thread Safety** – Speech operations safely run on UI thread
+- 🔊 **Audio Level Monitoring** – Real-time RMS (volume) feedback
+- 🚨 **Error Handling** – Provides detailed error codes and messages
+- 🔑 **Permission Management** – Runtime permission handling for microphone access
+- 📦 **Lightweight** – Zero dependencies, minimal overhead
+- 💻 **TypeScript Support** – Built-in type definitions
 
 ## Installation & Setup
 
 ### Prerequisites
 
-- React Native development environment set up
-- Android SDK and Android Studio
+- React Native 0.60+ (auto-linking support)
+- Android SDK API Level 21+
 - Physical Android device (recommended - speech recognition doesn't work well on emulators)
 
-### Clone and Install
+### Install Package
 
 ```bash
-git clone https://github.com/yourusername/your-voice-app.git
-cd your-voice-app
-npm install
+npm install react-native-voice-utils
 # or
-yarn install
+yarn add react-native-voice-utils
 ```
 
 ### Android Setup
 
-1. **Update Package Name**: Replace `com.yourappname` with your actual package name in:
-   - `android/app/src/main/java/com/yourappname/VoiceModule.kt`
-   - `android/app/src/main/java/com/yourappname/VoicePackage.kt`
-   - `android/app/src/main/java/com/yourappname/MainApplication.kt`
-
-2. **Permissions**: The following permissions are already added to `AndroidManifest.xml`:
+**Permissions**: The following permissions are already added to `AndroidManifest.xml`:
    ```xml
    <uses-permission android:name="android.permission.RECORD_AUDIO" />
    <uses-permission android:name="android.permission.INTERNET" />
    ```
 
-3. **Build and Run**:
-   ```bash
-   npx react-native run-android
-   ```
+## Complete Working Example
 
-## Usage
-
-### Basic Implementation
+- Here's a complete, ready-to-use example that you can copy and paste directly into your React Native project:
 
 ```javascript
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, Alert, PermissionsAndroid } from 'react-native';
-import VoiceUtils from './src/utils/VoiceUtils';
+import React, {useEffect, useState} from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
+import {
+  startListening,
+  stopListening,
+  destroy,
+  onResults,
+  onError,
+  onReady,
+  onStart,
+  onEnd,
+  isAvailable,
+  isListening as checkListening,
+} from 'react-native-voice-utils';
 
 export default function App() {
   const [text, setText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [isAvailableState, setIsAvailable] = useState(false);
 
   useEffect(() => {
-    // Set up event listeners
-    const resultsListener = VoiceUtils.onResults((data) => {
-      if (data.value && data.value.length > 0) {
-        setText(data.value[0]);
-        setIsListening(false);
-      }
+    checkAvailability();
+
+    const readyListener = onReady(() => {
+      console.log('Ready to listen');
     });
 
-    const errorListener = VoiceUtils.onError((error) => {
-      console.error('Voice error:', error);
-      setIsListening(false);
-    });
-
-    const startListener = VoiceUtils.onStart(() => {
+    const startListener = onStart(() => {
+      console.log('Started listening');
       setIsListening(true);
     });
 
-    // Cleanup
+    const endListener = onEnd(() => {
+      console.log('Stopped listening');
+      setIsListening(false);
+    });
+
+    const resultsListener = onResults(data => {
+      console.log('Results:', data);
+      if (data.value && data.value.length > 0) {
+        setText(data.value[0]);
+      }
+      setIsListening(false);
+    });
+
+    const errorListener = onError(error => {
+      console.error('Voice recognition error:', error);
+      setIsListening(false);
+      Alert.alert('Error', error.message || `Error code: ${error.code}`);
+    });
+
     return () => {
-      VoiceUtils.removeEventListener('onResults', resultsListener);
-      VoiceUtils.removeEventListener('onError', errorListener);
-      VoiceUtils.removeEventListener('onBeginningOfSpeech', startListener);
+      readyListener.remove();
+      startListener.remove();
+      endListener.remove();
+      resultsListener.remove();
+      errorListener.remove();
+      destroy();
     };
   }, []);
 
-  const requestPermission = async () => {
-    const granted = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
-    );
-    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  const checkAvailability = async () => {
+    try {
+      const available = await isAvailable();
+      setIsAvailable(available);
+      if (!available) {
+        Alert.alert(
+          'Not Available',
+          'Speech recognition is not available on this device',
+        );
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+    }
   };
 
-  const startListening = async () => {
-    const hasPermission = await requestPermission();
-    if (!hasPermission) {
-      Alert.alert('Permission required', 'Microphone access needed');
-      return;
+  const requestMicrophonePermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Microphone Permission',
+            message: 'This app needs microphone access for voice recognition',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Permission request error:', err);
+        return false;
+      }
     }
+    return true;
+  };
 
+  const handleStartListening = async () => {
     try {
-      await VoiceUtils.startListening();
+      if (!isAvailableState) {
+        Alert.alert('Not Available', 'Speech recognition is not available');
+        return;
+      }
+
+      const currentlyListening = await checkListening();
+      if (currentlyListening) {
+        Alert.alert('Already Listening', 'Voice recognition is already active');
+        return;
+      }
+
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        Alert.alert('Permission Required', 'Microphone permission is needed');
+        return;
+      }
+
+      setText('Listening...');
+      await startListening();
     } catch (error) {
+      console.error('Start listening error:', error);
       Alert.alert('Error', 'Failed to start voice recognition');
     }
   };
 
-  const stopListening = async () => {
+  const handleStopListening = async () => {
     try {
-      await VoiceUtils.stopListening();
+      await stopListening();
     } catch (error) {
-      console.error('Stop error:', error);
+      console.error('Stop listening error:', error);
+      Alert.alert('Error', 'Failed to stop voice recognition');
     }
   };
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 18, marginBottom: 20 }}>
-        {text || 'Press start and say something...'}
-      </Text>
-      
-      <Button
-        title="Start Listening"
-        onPress={startListening}
-        disabled={isListening}
-      />
-      
-      <Button
-        title="Stop Listening"
-        onPress={stopListening}
-        disabled={!isListening}
-      />
+    <View style={styles.container}>
+      <Text style={styles.title}>Voice Recognition Demo</Text>
+
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>
+          Available: {isAvailableState ? '✅' : '❌'}
+        </Text>
+        <Text style={styles.statusText}>
+          Listening: {isListening ? '🎤' : '🔇'}
+        </Text>
+      </View>
+
+      <View style={styles.resultContainer}>
+        <Text style={styles.resultText}>
+          {text || 'Press "Start Listening" and say something...'}
+        </Text>
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.startButton]}
+          onPress={handleStartListening}
+          disabled={!isAvailableState || isListening}>
+          <Text style={styles.buttonText}>Start Listening</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.stopButton]}
+          onPress={handleStopListening}
+          disabled={!isListening}>
+          <Text style={styles.buttonText}>Stop Listening</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#333',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    elevation: 3,
+  },
+  statusText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  resultContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 20,
+    elevation: 3,
+  },
+  resultText: {
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#333',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  button: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  startButton: {
+    backgroundColor: '#4CAF50',
+  },
+  stopButton: {
+    backgroundColor: '#f44336',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+});
+```
+
+**Build and Run**:
+```bash
+npx react-native run-android
 ```
 
 ## API Reference
@@ -242,28 +392,7 @@ Fired when the audio level (RMS) changes.
 | 8 | `ERROR_RECOGNIZER_BUSY` | RecognitionService busy |
 | 9 | `ERROR_INSUFFICIENT_PERMISSIONS` | Insufficient permissions |
 
-## Project Structure
-
-```
-src/
-├── components/
-│   └── VoiceRecognition.js     # Main voice recognition component
-├── utils/
-│   └── VoiceUtils.js           # JavaScript interface to native module
-└── ...
-
-android/
-└── app/
-    └── src/
-        └── main/
-            └── java/
-                └── com/
-                    └── yourappname/
-                        ├── VoiceModule.kt      # Native Android module
-                        ├── VoicePackage.kt     # React Native package
-                        └── MainApplication.kt  # Updated with voice package
-```
-
+ 
 ## Permissions
 
 ### Required Permissions
@@ -312,21 +441,6 @@ The app requests microphone permission at runtime. Users must grant this permiss
 - **Battery Usage**: Voice recognition uses microphone and CPU resources
 - **Network Usage**: Cloud-based recognition uses data
 
-## Development
-
-### Building for Production
-
-```bash
-cd android
-./gradlew assembleRelease
-```
-
-### Debug Mode
-
-```bash
-npx react-native run-android --variant=debug
-```
-
 ## Future Enhancements
 
 - [ ] iOS support using Speech framework
@@ -359,13 +473,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you like this project, please give it a ⭐ on GitHub!
 
-For issues and questions, please use the [GitHub Issues](https://github.com/yourusername/your-voice-app/issues) page.
-
-## Related Projects
-
-- [react-native-voice](https://github.com/react-native-voice/voice) - Popular voice recognition library
-- [react-native-speech-to-text](https://github.com/your-link) - Alternative implementation
+For issues and questions, please use the [GitHub Issues](https://github.com/Hammadakra/react-native-voice-utils/issues) page.
 
 ---
 
-Made with ❤️ by [Your Name](https://github.com/yourusername)
+Made with ❤️ by [Muhammad Hammad Akram](https://github.com/hammadakra)
