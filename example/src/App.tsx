@@ -1,277 +1,242 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  SafeAreaView, 
-  Text, 
-  Button, 
-  ScrollView, 
-  PermissionsAndroid, 
-  Platform, 
-  Alert,
+import React, {useEffect, useState} from 'react';
+import {
   View,
-  StyleSheet
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
-import { 
-  startListening, 
-  stopListening, 
-  destroy, 
-  addVoiceListener,
+import {
+  startListening,
+  stopListening,
+  destroy,
+  onResults,
+  onError,
+  onReady,
+  onStart,
+  onEnd,
   isAvailable,
-  isListening
-} from '../../src/index';
+  isListening as checkListening,
+} from 'react-native-voice-utils';
 
-export default function App() {
-  const [text, setText] = useState<string>("");
-  const [listening, setListening] = useState<boolean>(false);
-  const [available, setAvailable] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+export default function VoiceRecognitionExample() {
+  const [text, setText] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [isAvailableState, setIsAvailable] = useState(false);
 
-  // Request microphone permission (Android only)
-  const requestMicPermission = async (): Promise<boolean> => {
+  useEffect(() => {
+    checkAvailability();
+
+    const readyListener = onReady(() => {
+      console.log('Ready to listen');
+    });
+
+    const startListener = onStart(() => {
+      console.log('Started listening');
+      setIsListening(true);
+    });
+
+    const endListener = onEnd(() => {
+      console.log('Stopped listening');
+      setIsListening(false);
+    });
+
+    const resultsListener = onResults(data => {
+      console.log('Results:', data);
+      if (data.value && data.value.length > 0) {
+        setText(data.value[0]);
+      }
+      setIsListening(false);
+    });
+
+    const errorListener = onError(error => {
+      console.error('Voice recognition error:', error);
+      setIsListening(false);
+      Alert.alert('Error', error.message || `Error code: ${error.code}`);
+    });
+
+    return () => {
+      readyListener.remove();
+      startListener.remove();
+      endListener.remove();
+      resultsListener.remove();
+      errorListener.remove();
+      destroy();
+    };
+  }, []);
+
+  const checkAvailability = async () => {
+    try {
+      const available = await isAvailable();
+      setIsAvailable(available);
+      if (!available) {
+        Alert.alert(
+          'Not Available',
+          'Speech recognition is not available on this device',
+        );
+      }
+    } catch (error) {
+      console.error('Error checking availability:', error);
+    }
+  };
+
+  const requestMicrophonePermission = async () => {
     if (Platform.OS === 'android') {
       try {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
             title: 'Microphone Permission',
-            message: 'This app needs access to your microphone to convert speech to text.',
+            message: 'This app needs microphone access for voice recognition',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
-          }
+          },
         );
-
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn('Mic permission error:', err);
+        console.warn('Permission request error:', err);
         return false;
       }
     }
-    return true; // iOS handled in Info.plist
+    return true;
   };
-
-  useEffect(() => {
-    // Check if speech recognition is available
-    const checkAvailability = async () => {
-      try {
-        const isAvail = await isAvailable();
-        setAvailable(isAvail);
-        if (!isAvail) {
-          setError("Speech recognition is not available on this device");
-        }
-      } catch (err) {
-        console.error("Error checking availability:", err);
-        setError("Failed to check speech recognition availability");
-      }
-    };
-
-    checkAvailability();
-
-    // Set up event listeners
-    const readyListener = addVoiceListener("onReadyForSpeech", () => {
-      console.log("Ready for speech");
-      setError("");
-    });
-
-    const startListener = addVoiceListener("onBeginningOfSpeech", () => {
-      console.log("Speech started");
-      setListening(true);
-    });
-
-    const endListener = addVoiceListener("onEndOfSpeech", () => {
-      console.log("Speech ended");
-      setListening(false);
-    });
-
-    const resultsListener = addVoiceListener("onResults", (data) => {
-      console.log("Results:", data);
-      if (data && data.value && data.value.length > 0) {
-        setText(data.value[0]);
-      }
-      setListening(false);
-    });
-
-    const partialListener = addVoiceListener("onPartialResults", (data) => {
-      console.log("Partial results:", data);
-      if (data && data.value && data.value.length > 0) {
-        setText(data.value[0]);
-      }
-    });
-
-    const errorListener = addVoiceListener("onError", (errorData) => {
-      console.log("Error:", errorData);
-      setListening(false);
-      
-      if (typeof errorData === 'object' && errorData.message) {
-        setError(`Error: ${errorData.message}`);
-      } else {
-        setError(`Error code: ${errorData}`);
-      }
-    });
-
-    const rmsListener = addVoiceListener("onRmsChanged", (data) => {
-      // console.log("RMS changed:", data); // Uncomment for debugging
-    });
-
-    // Cleanup function
-    return () => {
-      readyListener.remove();
-      startListener.remove();
-      endListener.remove();
-      resultsListener.remove();
-      partialListener.remove();
-      errorListener.remove();
-      rmsListener.remove();
-      
-      // Destroy the speech recognizer
-      destroy().catch(console.error);
-    };
-  }, []);
 
   const handleStartListening = async () => {
     try {
-      setError("");
-      
-      // Check if already listening
-      const currentlyListening = await isListening();
+      if (!isAvailableState) {
+        Alert.alert('Not Available', 'Speech recognition is not available');
+        return;
+      }
+
+      const currentlyListening = await checkListening();
       if (currentlyListening) {
-        Alert.alert("Already Listening", "Speech recognition is already active.");
+        Alert.alert('Already Listening', 'Voice recognition is already active');
         return;
       }
 
-      // Check availability
-      if (!available) {
-        Alert.alert("Not Available", "Speech recognition is not available on this device.");
-        return;
-      }
-
-      // Request permission
-      const hasPermission = await requestMicPermission();
+      const hasPermission = await requestMicrophonePermission();
       if (!hasPermission) {
-        Alert.alert("Permission Denied", "Microphone access is required for speech recognition.");
+        Alert.alert('Permission Required', 'Microphone permission is needed');
         return;
       }
-      
-      console.log("Starting speech recognition...");
-      setText("Listening...");
-      
+
+      setText('Listening...');
       await startListening();
-    } catch (err) {
-      console.error("Failed to start listening:", err);
-      setError(`Failed to start: ${err.message || err}`);
-      setListening(false);
+    } catch (error) {
+      console.error('Start listening error:', error);
+      Alert.alert('Error', 'Failed to start voice recognition');
     }
   };
 
   const handleStopListening = async () => {
     try {
-      console.log("Stopping speech recognition...");
       await stopListening();
-    } catch (err) {
-      console.error("Failed to stop listening:", err);
-      setError(`Failed to stop: ${err.message || err}`);
+    } catch (error) {
+      console.error('Stop listening error:', error);
+      Alert.alert('Error', 'Failed to stop voice recognition');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Voice to Text</Text>
-        
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>
-            Available: {available ? "✅" : "❌"}
-          </Text>
-          <Text style={styles.statusText}>
-            Listening: {listening ? "🎤" : "🔇"}
-          </Text>
-        </View>
+    <View style={styles.container}>
+      <Text style={styles.title}>Voice Recognition Demo</Text>
 
-        <View style={styles.textContainer}>
-          <Text style={styles.resultText}>
-            {text || "Say something..."}
-          </Text>
-        </View>
+      <View style={styles.statusContainer}>
+        <Text style={styles.statusText}>
+          Available: {isAvailableState ? '✅' : '❌'}
+        </Text>
+        <Text style={styles.statusText}>
+          Listening: {isListening ? '🎤' : '🔇'}
+        </Text>
+      </View>
 
-        {error ? (
-          <Text style={styles.errorText}>{error}</Text>
-        ) : null}
+      <View style={styles.resultContainer}>
+        <Text style={styles.resultText}>
+          {text || 'Press "Start Listening" and say something...'}
+        </Text>
+      </View>
 
-        <View style={styles.buttonContainer}>
-          <Button 
-            title="Start Listening" 
-            onPress={handleStartListening}
-            disabled={!available || listening}
-          />
-          <View style={styles.buttonSpacer} />
-          <Button 
-            title="Stop Listening" 
-            onPress={handleStopListening}
-            disabled={!listening}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, styles.startButton]}
+          onPress={handleStartListening}
+          disabled={!isAvailableState || isListening}>
+          <Text style={styles.buttonText}>Start Listening</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.stopButton]}
+          onPress={handleStopListening}
+          disabled={!isListening}>
+          <Text style={styles.buttonText}>Stop Listening</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    textAlign: 'center',
     marginBottom: 20,
     color: '#333',
   },
   statusContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
     marginBottom: 20,
-    gap: 20,
+    padding: 15,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    elevation: 3,
   },
   statusText: {
     fontSize: 16,
     color: '#666',
   },
-  textContainer: {
+  resultContainer: {
+    flex: 1,
     backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
     marginBottom: 20,
-    minHeight: 100,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    elevation: 3,
   },
   resultText: {
     fontSize: 18,
+    lineHeight: 24,
     color: '#333',
-    textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: 'center',
   },
   buttonContainer: {
     flexDirection: 'row',
-    width: '100%',
+    justifyContent: 'space-between',
   },
-  buttonSpacer: {
-    width: 10,
+  button: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  startButton: {
+    backgroundColor: '#4CAF50',
+  },
+  stopButton: {
+    backgroundColor: '#f44336',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

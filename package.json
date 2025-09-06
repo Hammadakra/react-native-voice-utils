@@ -1,6 +1,6 @@
 {
   "name": "react-native-voice-utils",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "A lightweight React Native utility for voice-to-text, audio recording, and playback. Simple API, works on iOS & Android.",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
