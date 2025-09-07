@@ -34,7 +34,7 @@ yarn add react-native-voice-utils
 
 ### Android Setup
 
-**Permissions**: The following permissions are already added to `AndroidManifest.xml`:
+**Permissions**: The following permissions need to be added. `AndroidManifest.xml`:
    ```xml
    <uses-permission android:name="android.permission.RECORD_AUDIO" />
    <uses-permission android:name="android.permission.INTERNET" />
